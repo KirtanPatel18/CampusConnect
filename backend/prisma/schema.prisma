@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String    @id @default(uuid()) @db.Uuid
+  googleId   String?
+  full_name  String
+  email      String    @unique
+  password   String?
+  authProvider String?
+  university String?
+  major      String?
+  year       String?
+  location   String?
+  bio        String?
+  website    String?
+  avatar_url String?
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  events         Event[]          @relation("OrganizedEvents")
+  eventAttendees EventAttendee[]
+  forumTopics    ForumTopic[]
+  forumReplies   ForumReply[]
+  resources      Resource[]
+  notifications  Notification[]
+  forumReplyLikes ForumReplyLike[]
+  forumTopicLikes ForumTopicLike[]
+}
+
+model Event {
+  id            String          @id @default(uuid()) @db.Uuid
+  title         String
+  description   String
+  date          DateTime        @db.Timestamptz(6)
+  location      String
+  category      String
+  image_url     String?
+  is_virtual    Boolean         @default(false)
+  max_attendees Int?
+  organizer_id  String          @db.Uuid
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organizer User           @relation("OrganizedEvents", fields: [organizer_id], references: [id])
+  attendees EventAttendee[]
+}
+
+model EventAttendee {
+  event_id String @db.Uuid
+  user_id  String @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  event Event @relation(fields: [event_id], references: [id])
+  user  User  @relation(fields: [user_id], references: [id])
+
+  @@id([event_id, user_id])
+}
+
+model ForumTopic {
+  id          String    @id @default(uuid()) @db.Uuid
+  title       String
+  description String
+  category    String
+  author_id   String    @db.Uuid
+  is_pinned   Boolean   @default(false)
+  is_locked   Boolean   @default(false)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  author User         @relation(fields: [author_id], references: [id])
+  replies ForumReply[]
+  likes ForumTopicLike[]
+}
+
+model ForumTopicLike {
+  topic_id   String   @db.Uuid
+  user_id    String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  topic ForumTopic @relation(fields: [topic_id], references: [id])
+  user  User       @relation(fields: [user_id], references: [id])
+
+  @@id([topic_id, user_id]) // Composite primary key to prevent duplicate likes
+}
+
+model ForumReply {
+  id              String     @id @default(uuid()) @db.Uuid
+  topic_id        String     @db.Uuid
+  content         String
+  author_id       String     @db.Uuid
+  parent_reply_id String?    @db.Uuid
+  created_at      DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+
+  topic        ForumTopic  @relation(fields: [topic_id], references: [id])
+  author       User        @relation(fields: [author_id], references: [id])
+  parentReply  ForumReply? @relation("ParentReply", fields: [parent_reply_id], references: [id])
+  childReplies ForumReply[] @relation("ParentReply")
+  likes ForumReplyLike[]
+}
+
+model ForumReplyLike {
+  reply_id String @db.Uuid
+  user_id  String @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  reply ForumReply @relation(fields: [reply_id], references: [id])
+  user  User       @relation(fields: [user_id], references: [id])
+
+  @@id([reply_id, user_id]) // Composite primary key to prevent duplicate likes
+}
+
+
+model Resource {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  description String
+  categoryId  String   // e.g., "cs"
+  category    String   // e.g., "Computer Science"
+  fileType    String   // e.g., "pdf"
+  fileSize    String   // e.g., "2.4 MB"
+  fileUrl     String
+  uploadDate  DateTime @default(now()) @db.Timestamptz(6)
+  downloadCount Int    @default(0)
+  uploaderId  String   @db.Uuid
+  approved    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  uploader    User     @relation(fields: [uploaderId], references: [id])
+}
+
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  user_id   String   @db.Uuid
+  type      String
+  message   String
+  link      String?
+  is_read   Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [user_id], references: [id])
+}
